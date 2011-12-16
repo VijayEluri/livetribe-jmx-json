@@ -1,5 +1,4 @@
 /**
- *
  * Copyright 2011 (C) The original author or authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,16 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.livetribe.jmx.rest.web;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+package com.acme;
 
 /**
  *
  */
-public interface Builder<T>
+public class AcmeClassLoader extends ClassLoader implements AcmeClassLoaderMBean
 {
-    public T build();
+    public AcmeClassLoader(ClassLoader parent)
+    {
+        super(parent);
+    }
 }

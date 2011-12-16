@@ -1,5 +1,4 @@
 /**
- *
  * Copyright 2011 (C) The original author or authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,17 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.livetribe.jmx.rest.web.service;
-
-import java.util.Collection;
-
-import org.livetribe.jmx.rest.web.domain.JMXNode;
-
+package com.acme;
 
 /**
  *
  */
-public interface JMXNodeService
+public interface HelloMBean
 {
-    Collection<JMXNode> getNodes();
+    void sayHello();
+
+    int add(int x, int y);
+
+    String getName();
+
+    int getCacheSize();
+
+    void setCacheSize(int cacheSize);
 }

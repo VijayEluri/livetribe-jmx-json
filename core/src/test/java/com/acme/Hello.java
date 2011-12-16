@@ -1,5 +1,4 @@
 /**
- *
  * Copyright 2011 (C) The original author or authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,40 +13,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.livetribe.jmx.rest.web.domain.jaxb;
-
-import javax.xml.bind.annotation.XmlRootElement;
-import java.util.Set;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+package com.acme;
 
 /**
  *
  */
-@XmlRootElement(name = "Index")
-public class NodesJaxBean
+public class Hello implements HelloMBean
 {
-    public Set<NodeJaxBean> nodes;
+    private String name;
+    private int cacheSize;
 
-    public NodesJaxBean()
+    public Hello()
+    {
+        this.name = "default";
+    }
+
+    public Hello(String name)
+    {
+        this.name = name;
+    }
+
+    public void sayHello()
     {
     }
 
-    public NodesJaxBean(Set<NodeJaxBean> nodes)
+    public int add(int x, int y)
     {
-        this.nodes = nodes;
+        return x + y;
     }
 
-    @Override
-    public String toString()
+    public String getName()
     {
-        StringBuilder builder = new StringBuilder();
-        builder.append("NodesJaxBean [nodes=");
-        builder.append(nodes);
-        builder.append("]");
-        return builder.toString();
+        return name;
     }
 
+    public int getCacheSize()
+    {
+        return cacheSize;
+    }
+
+    public void setCacheSize(int cacheSize)
+    {
+        this.cacheSize = cacheSize;
+    }
 }

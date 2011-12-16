@@ -20,14 +20,12 @@ import javax.management.MBeanServer;
 import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXServiceURL;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Map;
 
-import com.sun.jersey.spi.container.servlet.ServletContainer;
+import com.toolazydogs.jr4me.server.JsonRpcServlet;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.webapp.WebAppContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,37 +36,39 @@ import org.slf4j.LoggerFactory;
 public class ConnectorServer extends JMXConnectorServer
 {
     static final Logger LOG = LoggerFactory.getLogger(ConnectorServer.class);
-    private final int port;
-    private Server server;
+    private final JMXServiceURL serviceURL;
+    private final Map<String, ?> environment;
+    private final Server server;
 
-    public ConnectorServer(int port)
-    {
-        this.port = port;
-    }
-
-    public ConnectorServer(MBeanServer mbeanServer, int port)
+    public ConnectorServer(JMXServiceURL serviceURL, Map<String, ?> environment, MBeanServer mbeanServer)
     {
         super(mbeanServer);
-        this.port = port;
+
+        this.serviceURL = serviceURL;
+        this.environment = environment;
+
+        int port = serviceURL.getPort();
+
+        String urlPath = serviceURL.getURLPath();
+        urlPath = urlPath.endsWith("/") ? urlPath.substring(0, urlPath.length() - 1) : urlPath;
+
+        server = new Server(port);
+
+        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        context.setContextPath("/");
+        server.setHandler(context);
+
+        ServletHolder servletHolder = new ServletHolder(new JsonRpcServlet());
+        servletHolder.setInitParameter(JsonRpcServlet.PACKAGES, "org.livetribe.jmx.rest");
+        servletHolder.getRegistration().setLoadOnStartup(1);
+
+        context.addServlet(servletHolder, urlPath + "/*");
     }
 
     public void start() throws IOException
     {
         try
         {
-            server = new Server(port);
-
-            ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-            context.setContextPath("/");
-            server.setHandler(context);
-
-            ServletHolder holder = new ServletHolder(new ServletContainer());
-            holder.setInitParameter("com.sun.jersey.config.property.resourceConfigClass", "com.sun.jersey.api.core.PackagesResourceConfig");
-            holder.setInitParameter("com.sun.jersey.config.property.packages", "org.livetribe.jmx.rest.web");
-            holder.getRegistration().setLoadOnStartup(1);
-
-            context.addServlet(holder, "/ws/*");
-
             server.start();
             server.join();
         }
@@ -97,11 +97,11 @@ public class ConnectorServer extends JMXConnectorServer
 
     public JMXServiceURL getAddress()
     {
-        return null;  //Todo change body of implemented methods use File | Settings | File Templates.
+        return serviceURL;
     }
 
     public Map<String, ?> getAttributes()
     {
-        return Collections.emptyMap();
+        return environment;
     }
 }

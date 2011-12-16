@@ -30,12 +30,13 @@ import org.slf4j.LoggerFactory;
 /**
  *
  */
-public class ConnectorServerProvider implements JMXConnectorServerProvider
+public class ServerProvider implements JMXConnectorServerProvider
 {
-    static final Logger LOG = LoggerFactory.getLogger(ConnectorServerProvider.class);
+    static final Logger LOG = LoggerFactory.getLogger(ServerProvider.class);
 
     public JMXConnectorServer newJMXConnectorServer(JMXServiceURL serviceURL, Map<String, ?> environment, MBeanServer mbeanServer) throws IOException
     {
-        return null;  //Todo change body of implemented methods use File | Settings | File Templates.
+        LOG.trace("Allocating connector server for {} at URL {}", mbeanServer, serviceURL);
+        return new ConnectorServer(serviceURL, environment, mbeanServer);
     }
 }

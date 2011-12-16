@@ -16,6 +16,14 @@
  */
 package org.livetribe.jmx.rest;
 
+import javax.management.MBeanServer;
+import javax.management.remote.JMXConnectorServer;
+import javax.management.remote.JMXConnectorServerFactory;
+import javax.management.remote.JMXServiceURL;
+import java.lang.management.ManagementFactory;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.testng.annotations.Test;
 
 
@@ -27,7 +35,18 @@ public class ConnectorServerTest
     @Test
     public void test() throws Exception
     {
-        ConnectorServer server = new ConnectorServer(8080);
+        main();
+    }
+
+    public static void main(String... args) throws Exception
+    {
+        MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
+
+        JMXServiceURL url = new JMXServiceURL("service:jmx:rest://localhost:8080/ws/");
+        Map<String, Object> environment = new HashMap<String, Object>();
+        environment.put(JMXConnectorServerFactory.PROTOCOL_PROVIDER_PACKAGES, "org.livetribe.jmx");
+
+        JMXConnectorServer server = JMXConnectorServerFactory.newJMXConnectorServer(url, environment, mBeanServer);
         server.start();
         server.stop();
     }
