@@ -198,11 +198,6 @@ public class Manager
         return mBeanServer.createMBean(className, name, loaderName, params, signature);
     }
 
-    public ObjectInstance registerMBean(Object object, ObjectName name) throws InstanceAlreadyExistsException, MBeanRegistrationException, NotCompliantMBeanException
-    {
-        return mBeanServer.registerMBean(object, name);
-    }
-
     public void unregisterMBean(ObjectName name) throws InstanceNotFoundException, MBeanRegistrationException
     {
         mBeanServer.unregisterMBean(name);

@@ -52,7 +52,7 @@ public class ManagerTest
             new Manager(null, executorService);
             fail("Constructor should have thrown NullPointerException");
         }
-        catch (NullPointerException ignored)
+        catch (AssertionError ignored)
         {
         }
 
@@ -61,7 +61,7 @@ public class ManagerTest
             new Manager(ManagementFactory.getPlatformMBeanServer(), null);
             fail("Constructor should have thrown NullPointerException");
         }
-        catch (NullPointerException ignored)
+        catch (AssertionError ignored)
         {
         }
     }
@@ -185,34 +185,6 @@ public class ManagerTest
                                              PARENT_OBJECT_NAME,
                                              new Object[]{"FOO"},
                                              new String[]{String.class.getName()}),
-                         new ObjectInstance(HELLO_OBJECT_NAME, "com.acme.Hello"));
-
-            assertEquals(mBeanServer.getAttribute(HELLO_OBJECT_NAME, "Name"),
-                         "FOO");
-        }
-        finally
-        {
-            mBeanServer.unregisterMBean(HELLO_OBJECT_NAME);
-            mBeanServer.unregisterMBean(PARENT_OBJECT_NAME);
-        }
-    }
-
-    @Test
-    public void testRegisterMBean() throws Exception
-    {
-        MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
-
-        Manager manager = new Manager(mBeanServer, executorService);
-
-        try
-        {
-            manager.registerMBean(new AcmeClassLoader(Hello.class.getClassLoader()), PARENT_OBJECT_NAME);
-
-            assertEquals(mBeanServer.createMBean("com.acme.Hello",
-                                                 HELLO_OBJECT_NAME,
-                                                 PARENT_OBJECT_NAME,
-                                                 new Object[]{"FOO"},
-                                                 new String[]{String.class.getName()}),
                          new ObjectInstance(HELLO_OBJECT_NAME, "com.acme.Hello"));
 
             assertEquals(mBeanServer.getAttribute(HELLO_OBJECT_NAME, "Name"),

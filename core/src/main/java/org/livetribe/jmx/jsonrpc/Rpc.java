@@ -158,20 +158,13 @@ public class Rpc
     }
 
     @Method
-    public ObjectInstance registerMBean(@Param(name = "sessionId") Object object,
-                                        @Param(name = "sessionId") ObjectName name) throws InstanceAlreadyExistsException, MBeanRegistrationException, NotCompliantMBeanException
-    {
-        return ManagerFilter.getManager().registerMBean(object, name);
-    }
-
-    @Method
-    public void unregisterMBean(@Param(name = "sessionId") ObjectName name) throws InstanceNotFoundException, MBeanRegistrationException
+    public void unregisterMBean(@Param(name = "name") ObjectName name) throws InstanceNotFoundException, MBeanRegistrationException
     {
         ManagerFilter.getManager().unregisterMBean(name);
     }
 
     @Method
-    public ObjectInstance getObjectInstance(@Param(name = "sessionId") ObjectName name) throws InstanceNotFoundException
+    public ObjectInstance getObjectInstance(@Param(name = "name") ObjectName name) throws InstanceNotFoundException
     {
         return ManagerFilter.getManager().getObjectInstance(name);
     }
@@ -234,7 +227,7 @@ public class Rpc
     }
 
     @Method
-    public void addNotificationListener(@Param(name = "sessionId") ObjectName name) throws InstanceNotFoundException
+    public void addNotificationListener(@Param(name = "name") ObjectName name) throws InstanceNotFoundException
     {
         ManagerFilter.getManager().addNotificationListener(name);
     }
