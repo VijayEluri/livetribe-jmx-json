@@ -24,9 +24,9 @@
 
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.livetribe.jmx</groupId>
-    <artifactId>livetribe-jmx-rest-project</artifactId>
-    <name>LiveTribe :: REST/JSON JMX Connector</name>
-    <description>LiveTribe REST/JSON JMX Connector</description>
+    <artifactId>livetribe-jmx-json-project</artifactId>
+    <name>LiveTribe :: JSON-RPC JMX Connector</name>
+    <description>LiveTribe JSON-RPC JMX Connector</description>
     <packaging>pom</packaging>
     <version>1.0.0-SNAPSHOT</version>
 
@@ -35,9 +35,9 @@
     </modules>
 
     <scm>
-        <connection>scm:git:https://maguro@github.com/livetribe/livetribe-jmx-rest.git</connection>
-        <developerConnection>scm:git:https://maguro@github.com/livetribe/livetribe-jmx-rest.git</developerConnection>
-        <url>https://github.com/livetribe/livetribe-jmx-rest</url>
+        <connection>scm:git:https://maguro@github.com/livetribe/livetribe-jmx-json.git</connection>
+        <developerConnection>scm:git:https://maguro@github.com/livetribe/livetribe-jmx-json.git</developerConnection>
+        <url>https://github.com/livetribe/livetribe-jmx-json</url>
     </scm>
 
 </project>

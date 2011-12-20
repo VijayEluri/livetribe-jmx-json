@@ -18,14 +18,14 @@
 
     <parent>
         <groupId>org.livetribe.jmx</groupId>
-        <artifactId>livetribe-jmx-rest-project</artifactId>
+        <artifactId>livetribe-jmx-json-project</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>livetribe-jmx-rest</artifactId>
-    <name>LiveTribe :: REST/JSON JMX Connector :: Core</name>
-    <description>LiveTribe REST/JSON JMX Connector</description>
+    <artifactId>livetribe-jmx-json</artifactId>
+    <name>LiveTribe :: JSON-RPC JMX Connector :: Core</name>
+    <description>LiveTribe JSON-RPC JMX Connector</description>
     <packaging>jar</packaging>
 
     <properties>
