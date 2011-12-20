@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.livetribe.jmx.rest;
+package org.livetribe.jmx.jsonrpc;
 
 import javax.management.Attribute;
 import javax.management.AttributeList;
@@ -28,19 +28,22 @@ import javax.management.MBeanInfo;
 import javax.management.MBeanRegistrationException;
 import javax.management.MBeanServer;
 import javax.management.NotCompliantMBeanException;
-import javax.management.NotificationFilter;
 import javax.management.NotificationListener;
 import javax.management.ObjectInstance;
 import javax.management.ObjectName;
 import javax.management.QueryExp;
 import javax.management.ReflectionException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
+import org.livetribe.jmx.jsonrpc.model.Notifications;
+import org.livetribe.jmx.jsonrpc.model.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.livetribe.jmx.rest.model.Session;
 
 
 /**
@@ -50,34 +53,112 @@ public class Manager
 {
     private final static Logger LOGGER = LoggerFactory.getLogger(Manager.class);
     private final MBeanServer mBeanServer;
+    private final ScheduledExecutorService executorService;
+    private final Map<Integer, Session> sessions = new HashMap<Integer, Session>();
+    private int nextSessionId = 0;
 
-    public Manager(MBeanServer mBeanServer)
+    public Manager(MBeanServer mBeanServer, ScheduledExecutorService executorService)
     {
-        if (mBeanServer == null) throw new NullPointerException("MBeanServer canot be null");
+        assert mBeanServer != null;
+        assert executorService != null;
+
         this.mBeanServer = mBeanServer;
+        this.executorService = executorService;
     }
 
     public Integer createSession(int inactivityTimeout, int pollingTimeout, int maxNotifications)
     {
-        return null;  //Todo change body of created methods use File | Settings | File Templates.
+        synchronized (sessions)
+        {
+            int sessionId = nextSessionId++;
+
+            Future future = executorService.schedule(new DeleteSession(sessionId), inactivityTimeout, TimeUnit.SECONDS);
+
+            sessions.put(sessionId, new Session(sessionId, inactivityTimeout, pollingTimeout, maxNotifications, future));
+
+
+            return sessionId;
+        }
     }
 
-    public Boolean deleteSession(int sessionId)
+    public void deleteSession(int sessionId)
     {
-        return null;  //Todo change body of created methods use File | Settings | File Templates.
+        synchronized (sessions)
+        {
+            Session session = sessions.remove(sessionId);
+            if (session != null) session.getFuture().cancel(false);
+        }
     }
 
     public Session getSession(int sessionId)
     {
-        return null;  //Todo change body of created methods use File | Settings | File Templates.
+        synchronized (sessions)
+        {
+            Session session = sessions.remove(sessionId);
+            refresh(session);
+            return session;
+        }
     }
 
-    public Map<String, Object> getSessionProperty(int sessionId, String sessionPropertyName)
+    public Integer getSessionProperty(int sessionId, String name)
     {
-        return null;  //Todo change body of created methods use File | Settings | File Templates.
+        synchronized (sessions)
+        {
+            Session session = sessions.get(sessionId);
+            if (session == null) return null;
+
+            refresh(session);
+
+            if ("inactivityTimeout".equals(name))
+            {
+                return session.getInactivityTimeout();
+            }
+            else if ("pollingTimeout".equals(name))
+            {
+                return session.getPollingTimeout();
+            }
+            else if ("maxNotifications".equals(name))
+            {
+                return session.getMaxNotifications();
+            }
+
+            return null;
+        }
     }
 
     public Integer setSessionProperty(int sessionId, String sessionPropertyName, int sessionPropertyValue)
+    {
+        synchronized (sessions)
+        {
+            Session session = sessions.get(sessionId);
+            if (session == null) return null;
+
+            refresh(session);
+
+            if ("inactivityTimeout".equals(sessionPropertyName))
+            {
+                int result = session.getInactivityTimeout();
+                session.setInactivityTimeout(sessionPropertyValue);
+                return result;
+            }
+            else if ("pollingTimeout".equals(sessionPropertyName))
+            {
+                int result = session.getPollingTimeout();
+                session.setPollingTimeout(sessionPropertyValue);
+                return result;
+            }
+            else if ("maxNotifications".equals(sessionPropertyName))
+            {
+                int result = session.getMaxNotifications();
+                session.setMaxNotifications(sessionPropertyValue);
+                return result;
+            }
+
+            return null;
+        }
+    }
+
+    public Notifications fetchNotifications(int sessionId, long start)
     {
         return null;  //Todo change body of created methods use File | Settings | File Templates.
     }
@@ -172,34 +253,24 @@ public class Manager
         return mBeanServer.invoke(name, operationName, params, signature);
     }
 
-    public void addNotificationListener(ObjectName name, NotificationListener listener, NotificationFilter filter, Object handback) throws InstanceNotFoundException
+    public void addNotificationListener(ObjectName name) throws InstanceNotFoundException
     {
-        mBeanServer.addNotificationListener(name, listener, filter, handback);
+        mBeanServer.addNotificationListener(name, (NotificationListener)null, null, null);
     }
 
-    public void addNotificationListener(ObjectName name, ObjectName listener, NotificationFilter filter, Object handback) throws InstanceNotFoundException
+    public void addNotificationListener(ObjectName name, ObjectName listener, String handback) throws InstanceNotFoundException
     {
-        mBeanServer.addNotificationListener(name, listener, filter, handback);
+        mBeanServer.addNotificationListener(name, listener, null, handback);
     }
 
-    public void removeNotificationListener(ObjectName name, ObjectName listener) throws InstanceNotFoundException, ListenerNotFoundException
+    public void removeNotificationListener(ObjectName name) throws InstanceNotFoundException, ListenerNotFoundException
     {
-        mBeanServer.removeNotificationListener(name, listener);
+        mBeanServer.removeNotificationListener(name, (NotificationListener)null, null, null);
     }
 
-    public void removeNotificationListener(ObjectName name, ObjectName listener, NotificationFilter filter, Object handback) throws InstanceNotFoundException, ListenerNotFoundException
+    public void removeNotificationListener(ObjectName name, ObjectName listener, String handback) throws InstanceNotFoundException, ListenerNotFoundException
     {
-        mBeanServer.removeNotificationListener(name, listener, filter, handback);
-    }
-
-    public void removeNotificationListener(ObjectName name, NotificationListener listener) throws InstanceNotFoundException, ListenerNotFoundException
-    {
-        mBeanServer.removeNotificationListener(name, listener);
-    }
-
-    public void removeNotificationListener(ObjectName name, NotificationListener listener, NotificationFilter filter, Object handback) throws InstanceNotFoundException, ListenerNotFoundException
-    {
-        mBeanServer.removeNotificationListener(name, listener, filter, handback);
+        mBeanServer.removeNotificationListener(name, listener, null, handback);
     }
 
     public MBeanInfo getMBeanInfo(ObjectName name) throws InstanceNotFoundException, IntrospectionException, ReflectionException
@@ -212,23 +283,31 @@ public class Manager
         return mBeanServer.isInstanceOf(name, className);
     }
 
-    public Object instantiate(String className) throws ReflectionException, MBeanException
+    private void refresh(Session session)
     {
-        return mBeanServer.instantiate(className);
+        if (session != null)
+        {
+            LOGGER.trace("Refreshing session {}", session.getSessionId());
+            session.getFuture().cancel(false);
+            Future future = executorService.schedule(new DeleteSession(session.getSessionId()), session.getInactivityTimeout(), TimeUnit.SECONDS);
+            session.setFuture(future);
+        }
     }
 
-    public Object instantiate(String className, ObjectName loaderName) throws ReflectionException, MBeanException, InstanceNotFoundException
+    class DeleteSession implements Runnable
     {
-        return mBeanServer.instantiate(className, loaderName);
-    }
 
-    public Object instantiate(String className, Object[] params, String[] signature) throws ReflectionException, MBeanException
-    {
-        return mBeanServer.instantiate(className, params, signature);
-    }
+        private final int sessionId;
 
-    public Object instantiate(String className, ObjectName loaderName, Object[] params, String[] signature) throws ReflectionException, MBeanException, InstanceNotFoundException
-    {
-        return mBeanServer.instantiate(className, loaderName, params, signature);
+        DeleteSession(int sessionId) { this.sessionId = sessionId; }
+
+        @Override
+        public void run()
+        {
+            synchronized (sessions)
+            {
+                sessions.remove(sessionId);
+            }
+        }
     }
 }

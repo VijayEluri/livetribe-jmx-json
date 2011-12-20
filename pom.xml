@@ -35,9 +35,9 @@
     </modules>
 
     <scm>
-      <connection>scm:git:https://maguro@github.com/livetribe/livetribe-jmx-rest.git</connection>
-      <developerConnection>scm:git:https://maguro@github.com/livetribe/livetribe-jmx-rest.git</developerConnection>
-      <url>https://github.com/livetribe/livetribe-jmx-rest</url>
+        <connection>scm:git:https://maguro@github.com/livetribe/livetribe-jmx-rest.git</connection>
+        <developerConnection>scm:git:https://maguro@github.com/livetribe/livetribe-jmx-rest.git</developerConnection>
+        <url>https://github.com/livetribe/livetribe-jmx-rest</url>
     </scm>
 
 </project>

@@ -14,20 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.livetribe.jmx.rest;
+package org.livetribe.jmx.jsonrpc;
 
 import javax.management.MBeanServer;
 import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXServiceURL;
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
 
-import com.toolazydogs.jr4me.server.JsonRpcServlet;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.servlet.FilterHolder;
+import org.eclipse.jetty.servlet.FilterMapping;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.jboss.weld.environment.servlet.Listener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.toolazydogs.jr4me.server.JsonRpcServlet;
 
 
 /**
@@ -35,6 +40,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ConnectorServer extends JMXConnectorServer
 {
+    public static final String SCHEDULED_EXECUTOR = ConnectorServer.class.getName() + ".SCHEDULED_EXECUTOR";
     static final Logger LOG = LoggerFactory.getLogger(ConnectorServer.class);
     private final JMXServiceURL serviceURL;
     private final Map<String, ?> environment;
@@ -43,6 +49,8 @@ public class ConnectorServer extends JMXConnectorServer
     public ConnectorServer(JMXServiceURL serviceURL, Map<String, ?> environment, MBeanServer mbeanServer)
     {
         super(mbeanServer);
+
+        assert mbeanServer != null;
 
         this.serviceURL = serviceURL;
         this.environment = environment;
@@ -56,13 +64,21 @@ public class ConnectorServer extends JMXConnectorServer
 
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
-        server.setHandler(context);
 
         ServletHolder servletHolder = new ServletHolder(new JsonRpcServlet());
-        servletHolder.setInitParameter(JsonRpcServlet.PACKAGES, "org.livetribe.jmx.rest");
+        servletHolder.setInitParameter(JsonRpcServlet.PACKAGES, "org.livetribe.jmx.jsonrpc");
         servletHolder.getRegistration().setLoadOnStartup(1);
 
         context.addServlet(servletHolder, urlPath + "/*");
+
+        context.addEventListener(new Listener());
+
+        ScheduledExecutorService executorService = (ScheduledExecutorService)environment.get(SCHEDULED_EXECUTOR);
+        if (executorService == null) throw new NullPointerException("Missing " + SCHEDULED_EXECUTOR);
+
+        context.addFilter(new FilterHolder(new ManagerFilter(new Manager(mbeanServer, executorService))), "/*", FilterMapping.DEFAULT);
+
+        server.setHandler(context);
     }
 
     public void start() throws IOException

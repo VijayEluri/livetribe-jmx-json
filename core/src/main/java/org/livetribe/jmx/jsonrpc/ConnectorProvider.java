@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.livetribe.jmx.rest;
+package org.livetribe.jmx.jsonrpc;
 
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorProvider;

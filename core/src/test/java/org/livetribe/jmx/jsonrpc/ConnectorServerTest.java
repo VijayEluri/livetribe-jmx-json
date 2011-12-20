@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.livetribe.jmx.rest;
+package org.livetribe.jmx.jsonrpc;
 
 import javax.management.MBeanServer;
 import javax.management.remote.JMXConnectorServer;
@@ -23,6 +23,7 @@ import javax.management.remote.JMXServiceURL;
 import java.lang.management.ManagementFactory;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.testng.annotations.Test;
 
@@ -42,9 +43,10 @@ public class ConnectorServerTest
     {
         MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
-        JMXServiceURL url = new JMXServiceURL("service:jmx:rest://localhost:8080/ws/");
+        JMXServiceURL url = new JMXServiceURL("service:jmx:jsonrpc://localhost:8080/ws/");
         Map<String, Object> environment = new HashMap<String, Object>();
         environment.put(JMXConnectorServerFactory.PROTOCOL_PROVIDER_PACKAGES, "org.livetribe.jmx");
+        environment.put(ConnectorServer.SCHEDULED_EXECUTOR, new ScheduledThreadPoolExecutor(10));
 
         JMXConnectorServer server = JMXConnectorServerFactory.newJMXConnectorServer(url, environment, mBeanServer);
         server.start();

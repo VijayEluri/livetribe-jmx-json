@@ -13,9 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.livetribe.jmx.rest.model;
+package org.livetribe.jmx.jsonrpc.model;
 
+import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.Future;
+
+import org.codehaus.jackson.annotate.JsonIgnore;
 
 
 /**
@@ -28,20 +32,22 @@ public class Session
     private int pollingTimeout;
     private int maxNotifications;
     private int calls;
-    private Set<Listener> listeners;
+    private Set<Listener> listeners = new HashSet<Listener>();
+    @JsonIgnore private Future future;
 
     public Session()
     {
     }
 
-    public Session(int sessionId, int inactivityTimeout, int pollingTimeout, int maxNotifications, int calls, Set<Listener> listeners)
+    public Session(int sessionId, int inactivityTimeout, int pollingTimeout, int maxNotifications, Future future)
     {
+        assert future != null;
+
         this.sessionId = sessionId;
         this.inactivityTimeout = inactivityTimeout;
         this.pollingTimeout = pollingTimeout;
         this.maxNotifications = maxNotifications;
-        this.calls = calls;
-        this.listeners = listeners;
+        this.future = future;
     }
 
     public int getSessionId()
@@ -102,5 +108,15 @@ public class Session
     public void setListeners(Set<Listener> listeners)
     {
         this.listeners = listeners;
+    }
+
+    public Future getFuture()
+    {
+        return future;
+    }
+
+    public void setFuture(Future future)
+    {
+        this.future = future;
     }
 }
