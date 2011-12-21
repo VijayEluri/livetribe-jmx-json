@@ -28,6 +28,7 @@ import javax.management.MBeanInfo;
 import javax.management.MBeanRegistrationException;
 import javax.management.MBeanServer;
 import javax.management.NotCompliantMBeanException;
+import javax.management.Notification;
 import javax.management.NotificationListener;
 import javax.management.ObjectInstance;
 import javax.management.ObjectName;
@@ -49,21 +50,24 @@ import org.slf4j.LoggerFactory;
 /**
  * @author Alan D. Cabrera
  */
-public class Manager
+public class Manager implements NotificationListener
 {
     private final static Logger LOGGER = LoggerFactory.getLogger(Manager.class);
     private final MBeanServer mBeanServer;
     private final ScheduledExecutorService executorService;
     private final Map<Integer, Session> sessions = new HashMap<Integer, Session>();
     private int nextSessionId = 0;
+    private final NotificationQueue notificationQueue;
+    private final Map<ObjectName, Integer> listeners = new HashMap<ObjectName, Integer>();
 
-    public Manager(MBeanServer mBeanServer, ScheduledExecutorService executorService)
+    public Manager(MBeanServer mBeanServer, ScheduledExecutorService executorService, int capacity)
     {
         assert mBeanServer != null;
         assert executorService != null;
 
         this.mBeanServer = mBeanServer;
         this.executorService = executorService;
+        this.notificationQueue = new NotificationQueue(capacity);
     }
 
     public Integer createSession(int inactivityTimeout, int pollingTimeout, int maxNotifications)
@@ -76,7 +80,6 @@ public class Manager
 
             sessions.put(sessionId, new Session(sessionId, inactivityTimeout, pollingTimeout, maxNotifications, future));
 
-
             return sessionId;
         }
     }
@@ -88,6 +91,34 @@ public class Manager
             Session session = sessions.remove(sessionId);
             if (session != null) session.getFuture().cancel(false);
         }
+    }
+
+    public void drain()
+    {
+        for (Integer sessionId : sessions.keySet())
+        {
+            sessions.remove(sessionId).getFuture().cancel(false);
+        }
+        sessions.clear();
+
+        for (ObjectName name : listeners.keySet())
+        {
+            try
+            {
+                mBeanServer.removeNotificationListener(name, this, null, name);
+            }
+            catch (InstanceNotFoundException e)
+            {
+                LOGGER.warn("Instance {} not found during drain", name);
+            }
+            catch (ListenerNotFoundException e)
+            {
+                LOGGER.warn("Listener not found for {} during drain", name);
+            }
+        }
+        listeners.clear();
+
+        notificationQueue.clear();
     }
 
     public Session getSession(int sessionId)
@@ -160,7 +191,41 @@ public class Manager
 
     public Notifications fetchNotifications(int sessionId, long start)
     {
-        return null;  //Todo change body of created methods use File | Settings | File Templates.
+        Session session;
+        synchronized (sessions)
+        {
+            session = sessions.get(sessionId);
+            refresh(session);
+        }
+
+        if (session != null)
+        {
+            try
+            {
+                return notificationQueue.fetch(start, session.getMaxNotifications(), session.getPollingTimeout(), TimeUnit.MILLISECONDS);
+            }
+            catch (InterruptedException e)
+            {
+                LOGGER.warn("Interrupted");
+            }
+        }
+
+        return new Notifications(start, 0);
+    }
+
+    @Override
+    public void handleNotification(Notification notification, Object handback)
+    {
+        if (!(handback instanceof ObjectName)) return;
+
+        ObjectName objectName = (ObjectName)handback;
+        synchronized (listeners)
+        {
+            if (listeners.containsKey(objectName))
+            {
+                notificationQueue.add(new org.livetribe.jmx.jsonrpc.model.Notification(notification, objectName));
+            }
+        }
     }
 
     public String[] getDomains()
@@ -250,7 +315,18 @@ public class Manager
 
     public void addNotificationListener(ObjectName name) throws InstanceNotFoundException
     {
-        mBeanServer.addNotificationListener(name, (NotificationListener)null, null, null);
+        synchronized (listeners)
+        {
+            if (!listeners.containsKey(name))
+            {
+                mBeanServer.addNotificationListener(name, this, null, name);
+                listeners.put(name, 1);
+            }
+            else
+            {
+                listeners.put(name, listeners.get(name) + 1);
+            }
+        }
     }
 
     public void addNotificationListener(ObjectName name, ObjectName listener, String handback) throws InstanceNotFoundException
@@ -260,7 +336,18 @@ public class Manager
 
     public void removeNotificationListener(ObjectName name) throws InstanceNotFoundException, ListenerNotFoundException
     {
-        mBeanServer.removeNotificationListener(name, (NotificationListener)null, null, null);
+        synchronized (listeners)
+        {
+            if (listeners.containsKey(name))
+            {
+                int previous = listeners.put(name, listeners.get(name) - 1);
+                if (previous == 1)
+                {
+                    mBeanServer.removeNotificationListener(name, this, null, name);
+                    listeners.remove(name);
+                }
+            }
+        }
     }
 
     public void removeNotificationListener(ObjectName name, ObjectName listener, String handback) throws InstanceNotFoundException, ListenerNotFoundException
@@ -280,6 +367,8 @@ public class Manager
 
     private void refresh(Session session)
     {
+        assert Thread.holdsLock(sessions);
+
         if (session != null)
         {
             LOGGER.trace("Refreshing session {}", session.getSessionId());
@@ -291,7 +380,6 @@ public class Manager
 
     class DeleteSession implements Runnable
     {
-
         private final int sessionId;
 
         DeleteSession(int sessionId) { this.sessionId = sessionId; }

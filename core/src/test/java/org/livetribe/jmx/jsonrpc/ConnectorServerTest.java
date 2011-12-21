@@ -17,6 +17,7 @@
 package org.livetribe.jmx.jsonrpc;
 
 import javax.management.MBeanServer;
+import javax.management.ObjectName;
 import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXConnectorServerFactory;
 import javax.management.remote.JMXServiceURL;
@@ -25,6 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
+import com.acme.Hello;
 import org.testng.annotations.Test;
 
 
@@ -43,10 +45,13 @@ public class ConnectorServerTest
     {
         MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
+        mBeanServer.createMBean(Hello.class.getName(), ObjectName.getInstance("com.acme:name=Hello"));
+
         JMXServiceURL url = new JMXServiceURL("service:jmx:jsonrpc://localhost:8080/ws/");
         Map<String, Object> environment = new HashMap<String, Object>();
         environment.put(JMXConnectorServerFactory.PROTOCOL_PROVIDER_PACKAGES, "org.livetribe.jmx");
         environment.put(ConnectorServer.SCHEDULED_EXECUTOR, new ScheduledThreadPoolExecutor(10));
+        environment.put(ConnectorServer.CAPACITY, 1024);
 
         JMXConnectorServer server = JMXConnectorServerFactory.newJMXConnectorServer(url, environment, mBeanServer);
         server.start();

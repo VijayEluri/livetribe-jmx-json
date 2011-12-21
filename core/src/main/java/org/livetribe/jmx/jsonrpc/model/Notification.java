@@ -16,6 +16,7 @@
 package org.livetribe.jmx.jsonrpc.model;
 
 import javax.management.ObjectName;
+import java.util.Date;
 
 
 /**
@@ -71,6 +72,19 @@ public class Notification
         this.timeStamp = timeStamp;
         this.userData = userData;
         this.message = message;
+        this.source = source;
+    }
+
+    public Notification(javax.management.Notification notification, ObjectName source)
+    {
+        assert notification != null;
+        assert source != null;
+
+        this.type = notification.getType();
+        this.sequenceNumber = notification.getSequenceNumber();
+        this.timeStamp = notification.getTimeStamp();
+        this.userData = notification.getUserData();
+        this.message = notification.getMessage();
         this.source = source;
     }
 
@@ -132,5 +146,11 @@ public class Notification
     public void setSource(ObjectName source)
     {
         this.source = source;
+    }
+
+    @Override
+    public String toString()
+    {
+        return "[" + sequenceNumber + "] " + type + ": " + message + " " + new Date(timeStamp);
     }
 }

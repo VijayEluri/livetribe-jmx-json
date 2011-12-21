@@ -22,6 +22,7 @@ import org.codehaus.jackson.JsonParser;
 import org.codehaus.jackson.JsonProcessingException;
 import org.codehaus.jackson.JsonToken;
 import org.codehaus.jackson.map.DeserializationContext;
+import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.map.deser.std.StdDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,7 +78,7 @@ public class AttributeDeserializer extends StdDeserializer<Attribute>
                 {
                     parser.nextToken();
 
-                    value = JacksonUtils.deserialize(parser, context);
+                    value = new ObjectMapper().readValue(parser, Object.class);
 
                     LOG.trace("Class name {}", value);
                 }

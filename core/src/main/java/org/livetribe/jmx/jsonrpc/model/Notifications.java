@@ -25,8 +25,21 @@ import java.util.List;
 public class Notifications
 {
     private List<Notification> notifications = Collections.emptyList();
-    private long n;
-    private long f;
+    private long next;
+    private long smallest;
+
+    public Notifications(List<Notification> notifications, long next, long smallest)
+    {
+        this.notifications = notifications;
+        this.next = next;
+        this.smallest = smallest;
+    }
+
+    public Notifications(long next, long smallest)
+    {
+        this.next = next;
+        this.smallest = smallest;
+    }
 
     public List<Notification> getNotifications()
     {
@@ -38,23 +51,23 @@ public class Notifications
         this.notifications = notifications;
     }
 
-    public long getN()
+    public long getNext()
     {
-        return n;
+        return next;
     }
 
-    public void setN(long n)
+    public void setNext(long next)
     {
-        this.n = n;
+        this.next = next;
     }
 
-    public long getF()
+    public long getSmallest()
     {
-        return f;
+        return smallest;
     }
 
-    public void setF(long f)
+    public void setSmallest(long smallest)
     {
-        this.f = f;
+        this.smallest = smallest;
     }
 }

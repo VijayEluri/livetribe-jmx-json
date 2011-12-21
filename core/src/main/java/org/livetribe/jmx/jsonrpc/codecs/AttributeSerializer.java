@@ -20,6 +20,7 @@ import java.io.IOException;
 
 import org.codehaus.jackson.JsonGenerator;
 import org.codehaus.jackson.JsonProcessingException;
+import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.map.SerializerProvider;
 import org.codehaus.jackson.map.ser.std.SerializerBase;
 import org.slf4j.Logger;
@@ -46,7 +47,7 @@ public class AttributeSerializer extends SerializerBase<Attribute>
         generator.writeStartObject();
         generator.writeStringField("name", attribute.getName());
         generator.writeFieldName("value");
-        JacksonUtils.serialize(attribute.getValue(), generator, provider);
+        new ObjectMapper().writeValue(generator, attribute.getValue());
         generator.writeEndObject();
     }
 }

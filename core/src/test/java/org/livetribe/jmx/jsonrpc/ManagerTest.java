@@ -49,7 +49,7 @@ public class ManagerTest
     {
         try
         {
-            new Manager(null, executorService);
+            new Manager(null, executorService, 5);
             fail("Constructor should have thrown NullPointerException");
         }
         catch (AssertionError ignored)
@@ -58,7 +58,7 @@ public class ManagerTest
 
         try
         {
-            new Manager(ManagementFactory.getPlatformMBeanServer(), null);
+            new Manager(ManagementFactory.getPlatformMBeanServer(), null, 5);
             fail("Constructor should have thrown NullPointerException");
         }
         catch (AssertionError ignored)
@@ -72,7 +72,7 @@ public class ManagerTest
         MBeanServer mBeanServer = mock(MBeanServer.class);
         when(mBeanServer.getMBeanCount()).thenReturn(123);
 
-        Manager manager = new Manager(mBeanServer, executorService);
+        Manager manager = new Manager(mBeanServer, executorService, 5);
 
         assertEquals((int)manager.getMBeanCount(), 123);
     }
@@ -83,7 +83,7 @@ public class ManagerTest
         MBeanServer mBeanServer = mock(MBeanServer.class);
         when(mBeanServer.getDomains()).thenReturn(new String[]{"A", "B", "C"});
 
-        Manager manager = new Manager(mBeanServer, executorService);
+        Manager manager = new Manager(mBeanServer, executorService, 5);
 
         assertEquals(manager.getDomains(), new String[]{"A", "B", "C"});
     }
@@ -94,7 +94,7 @@ public class ManagerTest
         MBeanServer mBeanServer = mock(MBeanServer.class);
         when(mBeanServer.getDefaultDomain()).thenReturn("DEFAULT_DOMAIN");
 
-        Manager manager = new Manager(mBeanServer, executorService);
+        Manager manager = new Manager(mBeanServer, executorService, 5);
 
         assertEquals(manager.getDefaultDomain(), "DEFAULT_DOMAIN");
     }
@@ -104,7 +104,7 @@ public class ManagerTest
     {
         MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
-        Manager manager = new Manager(mBeanServer, executorService);
+        Manager manager = new Manager(mBeanServer, executorService, 5);
 
         try
         {
@@ -128,7 +128,7 @@ public class ManagerTest
         {
             mBeanServer.registerMBean(new AcmeClassLoader(Hello.class.getClassLoader()), PARENT_OBJECT_NAME);
 
-            Manager manager = new Manager(mBeanServer, executorService);
+            Manager manager = new Manager(mBeanServer, executorService, 5);
 
             assertEquals(manager.createMBean("com.acme.Hello",
                                              HELLO_OBJECT_NAME,
@@ -150,7 +150,7 @@ public class ManagerTest
     {
         MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
-        Manager manager = new Manager(mBeanServer, executorService);
+        Manager manager = new Manager(mBeanServer, executorService, 5);
 
         try
         {
@@ -174,7 +174,7 @@ public class ManagerTest
     {
         MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
-        Manager manager = new Manager(mBeanServer, executorService);
+        Manager manager = new Manager(mBeanServer, executorService, 5);
 
         try
         {
@@ -202,7 +202,7 @@ public class ManagerTest
     {
         MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
-        Manager manager = new Manager(mBeanServer, executorService);
+        Manager manager = new Manager(mBeanServer, executorService, 5);
 
         assertEquals(manager.createMBean("com.acme.Hello", HELLO_OBJECT_NAME),
                      new ObjectInstance(HELLO_OBJECT_NAME, "com.acme.Hello"));
@@ -216,7 +216,7 @@ public class ManagerTest
     public void testGetObjectInstance() throws Exception
     {
         MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
-        Manager manager = new Manager(mBeanServer, executorService);
+        Manager manager = new Manager(mBeanServer, executorService, 5);
 
         try
         {

@@ -41,10 +41,12 @@ import com.toolazydogs.jr4me.server.JsonRpcServlet;
 public class ConnectorServer extends JMXConnectorServer
 {
     public static final String SCHEDULED_EXECUTOR = ConnectorServer.class.getName() + ".SCHEDULED_EXECUTOR";
+    public static final String CAPACITY = ConnectorServer.class.getName() + ".CAPACITY";
     static final Logger LOG = LoggerFactory.getLogger(ConnectorServer.class);
     private final JMXServiceURL serviceURL;
     private final Map<String, ?> environment;
     private final Server server;
+    private final Manager manager;
 
     public ConnectorServer(JMXServiceURL serviceURL, Map<String, ?> environment, MBeanServer mbeanServer)
     {
@@ -75,8 +77,12 @@ public class ConnectorServer extends JMXConnectorServer
 
         ScheduledExecutorService executorService = (ScheduledExecutorService)environment.get(SCHEDULED_EXECUTOR);
         if (executorService == null) throw new NullPointerException("Missing " + SCHEDULED_EXECUTOR);
+        Integer capacity = (Integer)environment.get(CAPACITY);
+        if (capacity == null) throw new IllegalArgumentException("Missing " + CAPACITY);
 
-        context.addFilter(new FilterHolder(new ManagerFilter(new Manager(mbeanServer, executorService))), "/*", FilterMapping.DEFAULT);
+        manager = new Manager(mbeanServer, executorService, capacity);
+
+        context.addFilter(new FilterHolder(new ManagerFilter(manager)), "/*", FilterMapping.DEFAULT);
 
         server.setHandler(context);
     }
@@ -102,6 +108,10 @@ public class ConnectorServer extends JMXConnectorServer
         catch (Exception e)
         {
             throw new IOException("Unable to stop Jetty server", e);
+        }
+        finally
+        {
+            manager.drain();
         }
     }
 
