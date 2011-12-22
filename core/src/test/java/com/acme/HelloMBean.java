@@ -15,10 +15,14 @@
  */
 package com.acme;
 
+import javax.management.NotificationBroadcaster;
+import javax.management.NotificationEmitter;
+
+
 /**
  *
  */
-public interface HelloMBean
+public interface HelloMBean extends NotificationEmitter
 {
     void sayHello();
 

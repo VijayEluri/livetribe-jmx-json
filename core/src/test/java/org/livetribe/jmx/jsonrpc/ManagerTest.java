@@ -19,15 +19,20 @@ import javax.management.MBeanServer;
 import javax.management.ObjectInstance;
 import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
+import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import com.acme.AcmeClassLoader;
 import com.acme.Hello;
+import org.livetribe.jmx.jsonrpc.model.Notification;
+import org.livetribe.jmx.jsonrpc.model.Notifications;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import org.testng.annotations.AfterClass;
@@ -43,6 +48,8 @@ public class ManagerTest
     private ScheduledExecutorService executorService;
     private ObjectName HELLO_OBJECT_NAME;
     private ObjectName PARENT_OBJECT_NAME;
+    private ObjectName BROTHER_OBJECT_NAME;
+    private ObjectName SISTER_OBJECT_NAME;
 
     @Test
     public void testBadMBeanServer() throws Exception
@@ -135,7 +142,7 @@ public class ManagerTest
                                              PARENT_OBJECT_NAME),
                          new ObjectInstance(HELLO_OBJECT_NAME, "com.acme.Hello"));
 
-            assertEquals(mBeanServer.getAttribute(ObjectName.getInstance("com.acme.Hello:type=Hello"), "Name"),
+            assertEquals(mBeanServer.getAttribute(HELLO_OBJECT_NAME, "Name"),
                          "default");
         }
         finally
@@ -231,12 +238,155 @@ public class ManagerTest
         }
     }
 
+    @Test
+    public void testInactivityTimeout() throws Exception
+    {
+        MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
+        Manager manager = new Manager(mBeanServer, executorService, 5);
+
+        int sessionId = manager.createSession(1 /* 1s inactivity timeout */, 100 /* 100ms polling timeout */, 50);
+
+        for (int i = 0; i < 15; i++)
+        {
+            Thread.sleep(100);
+            assertNotNull(manager.getSession(sessionId));
+        }
+
+        Thread.sleep(1100);
+
+        assertNull(manager.getSession(sessionId));
+    }
+
+    @Test
+    public void testListener() throws Exception
+    {
+        MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
+        Manager manager = new Manager(mBeanServer, executorService, 5);
+
+        Hello kitty = new Hello();
+        try
+        {
+            mBeanServer.registerMBean(kitty, HELLO_OBJECT_NAME);
+
+            int sessionId = manager.createSession(5 * 60 /* 5m inactivity timeout */, 5 * 60 * 1000 /* 5m polling timeout */, 50);
+            manager.addNotificationListener(sessionId, HELLO_OBJECT_NAME);
+
+            kitty.scratch();
+
+            Notifications notifications = manager.fetchNotifications(sessionId, 0);
+            assertNotNull(notifications);
+            assertEquals(notifications.getSmallest(), 0);
+            assertEquals(notifications.getNext(), 1);
+            assertNotNull(notifications.getNotifications());
+            assertEquals(notifications.getNotifications().size(), 1);
+
+            Notification notification = notifications.getNotifications().get(0);
+            assertEquals(notification.getType(), "purr");
+            assertEquals(notification.getSequenceNumber(), 0);
+            assertEquals(notification.getSource(), HELLO_OBJECT_NAME);
+            assertEquals(notification.getMessage(), "Oooh!");
+            assertTrue(Arrays.equals((String[])notification.getUserData(), new String[]{"collar", "pillow", "milk"}));
+
+            manager.removeNotificationListener(sessionId, HELLO_OBJECT_NAME);
+
+            kitty.tickle();
+
+            notifications = manager.fetchNotifications(sessionId, 1);
+            assertNotNull(notifications);
+            assertEquals(notifications.getSmallest(), 0);
+            assertEquals(notifications.getNext(), 1);
+            assertNotNull(notifications.getNotifications());
+            assertEquals(notifications.getNotifications().size(), 0);
+        }
+        finally
+        {
+            mBeanServer.unregisterMBean(HELLO_OBJECT_NAME);
+        }
+    }
+
+    @Test
+    public void testSessionListener() throws Exception
+    {
+        MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
+        Manager manager = new Manager(mBeanServer, executorService, 1024);
+
+        Hello brother = new Hello("brother");
+        Hello sister = new Hello("sister");
+        try
+        {
+            mBeanServer.registerMBean(brother, BROTHER_OBJECT_NAME);
+            mBeanServer.registerMBean(sister, SISTER_OBJECT_NAME);
+
+            int session_1 = manager.createSession(5 * 60 /* 5m inactivity timeout */, 5 * 60 * 1000 /* 5m polling timeout */, 50);
+            manager.addNotificationListener(session_1, BROTHER_OBJECT_NAME);
+            int session_2 = manager.createSession(5 * 60 /* 5m inactivity timeout */, 5 * 60 * 1000 /* 5m polling timeout */, 50);
+            manager.addNotificationListener(session_2, SISTER_OBJECT_NAME);
+
+            sister.scratch();
+            brother.scratch();
+            sister.scratch();
+            brother.scratch();
+            sister.scratch();
+            brother.scratch();
+
+            Notifications notifications = manager.fetchNotifications(session_1, 0);
+            assertNotNull(notifications);
+            assertEquals(notifications.getSmallest(), 1);
+            assertEquals(notifications.getNext(), 6);
+            assertNotNull(notifications.getNotifications());
+            assertEquals(notifications.getNotifications().size(), 3);
+
+            Notification notification = notifications.getNotifications().get(0);
+            assertEquals(notification.getType(), "purr");
+            assertEquals(notification.getSequenceNumber(), 0);
+            assertEquals(notification.getSource(), BROTHER_OBJECT_NAME);
+            assertEquals(notification.getMessage(), "Oooh!");
+            assertTrue(Arrays.equals((String[])notification.getUserData(), new String[]{"collar", "pillow", "milk"}));
+            notification = notifications.getNotifications().get(1);
+            assertEquals(notification.getType(), "purr");
+            assertEquals(notification.getSequenceNumber(), 1);
+            assertEquals(notification.getSource(), BROTHER_OBJECT_NAME);
+            assertEquals(notification.getMessage(), "Oooh!");
+            assertTrue(Arrays.equals((String[])notification.getUserData(), new String[]{"collar", "pillow", "milk"}));
+            notification = notifications.getNotifications().get(2);
+            assertEquals(notification.getType(), "purr");
+            assertEquals(notification.getSequenceNumber(), 2);
+            assertEquals(notification.getSource(), BROTHER_OBJECT_NAME);
+            assertEquals(notification.getMessage(), "Oooh!");
+            assertTrue(Arrays.equals((String[])notification.getUserData(), new String[]{"collar", "pillow", "milk"}));
+
+            manager.removeNotificationListener(session_1, BROTHER_OBJECT_NAME);
+            manager.removeNotificationListener(session_2, SISTER_OBJECT_NAME);
+
+            brother.tickle();
+            sister.tickle();
+            brother.tickle();
+            sister.tickle();
+            brother.tickle();
+            sister.tickle();
+
+            notifications = manager.fetchNotifications(session_1, 1);
+            assertNotNull(notifications);
+            assertEquals(notifications.getSmallest(), 0);
+            assertEquals(notifications.getNext(), 1);
+            assertNotNull(notifications.getNotifications());
+            assertEquals(notifications.getNotifications().size(), 0);
+        }
+        finally
+        {
+            mBeanServer.unregisterMBean(BROTHER_OBJECT_NAME);
+            mBeanServer.unregisterMBean(SISTER_OBJECT_NAME);
+        }
+    }
+
     @BeforeClass
     public void beforeClass() throws Exception
     {
         executorService = new ScheduledThreadPoolExecutor(10);
-        HELLO_OBJECT_NAME = ObjectName.getInstance("com.acme.Hello:type=Hello");
+        HELLO_OBJECT_NAME = ObjectName.getInstance("com.acme.Hello:name=Kitty");
         PARENT_OBJECT_NAME = ObjectName.getInstance("com.acme.Hello:type=Parent");
+        BROTHER_OBJECT_NAME = ObjectName.getInstance("com.acme.Hello:type=Brother");
+        SISTER_OBJECT_NAME = ObjectName.getInstance("com.acme.Hello:type=Sister");
     }
 
     @AfterClass

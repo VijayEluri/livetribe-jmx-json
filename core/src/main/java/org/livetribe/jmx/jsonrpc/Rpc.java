@@ -227,9 +227,10 @@ public class Rpc
     }
 
     @Method
-    public void addNotificationListener(@Param(name = "name") ObjectName name) throws InstanceNotFoundException
+    public void addNotificationListener(@Param(name = "sessionId") int sessionId,
+                                        @Param(name = "name") ObjectName name) throws InstanceNotFoundException
     {
-        ManagerFilter.getManager().addNotificationListener(name);
+        ManagerFilter.getManager().addNotificationListener(sessionId, name);
     }
 
     @Method
@@ -241,9 +242,10 @@ public class Rpc
     }
 
     @Method
-    public void removeNotificationListener(@Param(name = "name") ObjectName name) throws InstanceNotFoundException, ListenerNotFoundException
+    public void removeNotificationListener(@Param(name = "sessionId") int sessionId,
+                                           @Param(name = "name") ObjectName name) throws InstanceNotFoundException, ListenerNotFoundException
     {
-        ManagerFilter.getManager().removeNotificationListener(name);
+        ManagerFilter.getManager().removeNotificationListener(sessionId, name);
     }
 
     @Method

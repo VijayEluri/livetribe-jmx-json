@@ -59,6 +59,7 @@ public class Manager implements NotificationListener
     private int nextSessionId = 0;
     private final NotificationQueue notificationQueue;
     private final Map<ObjectName, Integer> listeners = new HashMap<ObjectName, Integer>();
+    private final Map<Integer, Map<ObjectName, Integer>> sessionListeners = new HashMap<Integer, Map<ObjectName, Integer>>();
 
     public Manager(MBeanServer mBeanServer, ScheduledExecutorService executorService, int capacity)
     {
@@ -90,6 +91,30 @@ public class Manager implements NotificationListener
         {
             Session session = sessions.remove(sessionId);
             if (session != null) session.getFuture().cancel(false);
+
+            Map<ObjectName, Integer> count = sessionListeners.get(sessionId);
+            if (count != null)
+            {
+                for (ObjectName name : count.keySet())
+                {
+                    int c = count.get(name);
+                    for (int i = 0; i < c; i++)
+                    {
+                        try
+                        {
+                            removeNotificationListener(sessionId, name);
+                        }
+                        catch (InstanceNotFoundException e)
+                        {
+                            LOGGER.warn("Instance {} not found during session removal", name);
+                        }
+                        catch (ListenerNotFoundException e)
+                        {
+                            LOGGER.warn("Listener not found for {} during session removal", name);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -101,31 +126,35 @@ public class Manager implements NotificationListener
         }
         sessions.clear();
 
-        for (ObjectName name : listeners.keySet())
+        synchronized (listeners)
         {
-            try
+            for (ObjectName name : listeners.keySet())
             {
-                mBeanServer.removeNotificationListener(name, this, null, name);
+                try
+                {
+                    mBeanServer.removeNotificationListener(name, this, null, name);
+                }
+                catch (InstanceNotFoundException e)
+                {
+                    LOGGER.warn("Instance {} not found during drain", name);
+                }
+                catch (ListenerNotFoundException e)
+                {
+                    LOGGER.warn("Listener not found for {} during drain", name);
+                }
             }
-            catch (InstanceNotFoundException e)
-            {
-                LOGGER.warn("Instance {} not found during drain", name);
-            }
-            catch (ListenerNotFoundException e)
-            {
-                LOGGER.warn("Listener not found for {} during drain", name);
-            }
-        }
-        listeners.clear();
+            listeners.clear();
+            sessionListeners.clear();
 
-        notificationQueue.clear();
+            notificationQueue.clear();
+        }
     }
 
     public Session getSession(int sessionId)
     {
         synchronized (sessions)
         {
-            Session session = sessions.remove(sessionId);
+            Session session = sessions.get(sessionId);
             refresh(session);
             return session;
         }
@@ -198,11 +227,12 @@ public class Manager implements NotificationListener
             refresh(session);
         }
 
-        if (session != null)
+        Map<ObjectName, Integer> objects = sessionListeners.get(sessionId);
+        if (session != null && objects != null)
         {
             try
             {
-                return notificationQueue.fetch(start, session.getMaxNotifications(), session.getPollingTimeout(), TimeUnit.MILLISECONDS);
+                return notificationQueue.fetch(start, session.getMaxNotifications(), objects.keySet(), session.getPollingTimeout(), TimeUnit.MILLISECONDS);
             }
             catch (InterruptedException e)
             {
@@ -313,18 +343,33 @@ public class Manager implements NotificationListener
         return mBeanServer.invoke(name, operationName, params, signature);
     }
 
-    public void addNotificationListener(ObjectName name) throws InstanceNotFoundException
+    public void addNotificationListener(int sessionId, ObjectName name) throws InstanceNotFoundException
     {
-        synchronized (listeners)
+        synchronized (sessions)
         {
+            if (!sessions.containsKey(sessionId)) return;
+
             if (!listeners.containsKey(name))
             {
+                LOGGER.trace("New listener for {}", name);
                 mBeanServer.addNotificationListener(name, this, null, name);
                 listeners.put(name, 1);
             }
             else
             {
+                LOGGER.trace("Incremented listener count for {}", name);
                 listeners.put(name, listeners.get(name) + 1);
+            }
+
+            Map<ObjectName, Integer> count = sessionListeners.get(sessionId);
+            if (count == null)
+            {
+                sessionListeners.put(sessionId, count = new HashMap<ObjectName, Integer>());
+                count.put(name, 1);
+            }
+            else
+            {
+                count.put(name, count.get(name) + 1);
             }
         }
     }
@@ -334,17 +379,34 @@ public class Manager implements NotificationListener
         mBeanServer.addNotificationListener(name, listener, null, handback);
     }
 
-    public void removeNotificationListener(ObjectName name) throws InstanceNotFoundException, ListenerNotFoundException
+    public void removeNotificationListener(int sessionId, ObjectName name) throws InstanceNotFoundException, ListenerNotFoundException
     {
-        synchronized (listeners)
+        synchronized (sessions)
         {
+            if (!sessions.containsKey(sessionId)) return;
+
             if (listeners.containsKey(name))
             {
+                Map<ObjectName, Integer> count = sessionListeners.get(sessionId);
+                if (count != null)
+                {
+                    int previous = count.put(name, count.get(name) - 1);
+                    if (previous == 1)
+                    {
+                        sessionListeners.remove(sessionId);
+                    }
+                }
+
                 int previous = listeners.put(name, listeners.get(name) - 1);
                 if (previous == 1)
                 {
-                    mBeanServer.removeNotificationListener(name, this, null, name);
+                    LOGGER.trace("Number of listeners for {} decremented to 0 - removing listener", name);
                     listeners.remove(name);
+                    mBeanServer.removeNotificationListener(name, this, null, name);
+                }
+                else
+                {
+                    LOGGER.trace("Number of listeners for {} decremented to {}", name, previous - 1);
                 }
             }
         }
@@ -387,10 +449,8 @@ public class Manager implements NotificationListener
         @Override
         public void run()
         {
-            synchronized (sessions)
-            {
-                sessions.remove(sessionId);
-            }
+            LOGGER.info("Session {} expired", sessionId);
+            deleteSession(sessionId);
         }
     }
 }

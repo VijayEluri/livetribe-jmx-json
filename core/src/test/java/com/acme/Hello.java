@@ -15,21 +15,28 @@
  */
 package com.acme;
 
+import javax.management.MBeanNotificationInfo;
+import javax.management.Notification;
+import javax.management.NotificationBroadcasterSupport;
+
+
 /**
  *
  */
-public class Hello implements HelloMBean
+public class Hello extends NotificationBroadcasterSupport implements HelloMBean
 {
     private String name;
     private int cacheSize;
+    private long sequenceNumber;
 
     public Hello()
     {
-        this.name = "default";
+        this("default");
     }
 
     public Hello(String name)
     {
+        super(null, new MBeanNotificationInfo[]{new MBeanNotificationInfo(new String[]{"purr", "claws", "teeth"}, "behaviors", "Behaviors of this little kitty")});
         this.name = name;
     }
 
@@ -55,5 +62,26 @@ public class Hello implements HelloMBean
     public void setCacheSize(int cacheSize)
     {
         this.cacheSize = cacheSize;
+    }
+
+    public void tickle()
+    {
+        Notification notification = new Notification("claws", this, sequenceNumber++, System.currentTimeMillis(), "Stop that!");
+        notification.setUserData(new String[]{"collar", "pillow", "milk"});
+        sendNotification(notification);
+    }
+
+    public void scratch()
+    {
+        Notification notification = new Notification("purr", this, sequenceNumber++, System.currentTimeMillis(), "Oooh!");
+        notification.setUserData(new String[]{"collar", "pillow", "milk"});
+        sendNotification(notification);
+    }
+
+    public void bird()
+    {
+        Notification notification = new Notification("teeth", this, sequenceNumber++, System.currentTimeMillis(), "Dinner!");
+        notification.setUserData(new String[]{"collar", "pillow", "milk"});
+        sendNotification(notification);
     }
 }

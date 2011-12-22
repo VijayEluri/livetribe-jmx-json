@@ -151,6 +151,6 @@ public class Notification
     @Override
     public String toString()
     {
-        return "[" + sequenceNumber + "] " + type + ": " + message + " " + new Date(timeStamp);
+        return "[" + sequenceNumber + "] " + type + ": " + message + " " + new Date(timeStamp) + " from " + source;
     }
 }

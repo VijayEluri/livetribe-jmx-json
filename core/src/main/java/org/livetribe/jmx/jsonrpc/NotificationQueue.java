@@ -15,12 +15,13 @@
  */
 package org.livetribe.jmx.jsonrpc;
 
-import java.util.ArrayList;
+import javax.management.ObjectName;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -41,20 +42,22 @@ public class NotificationQueue implements Queue<Notification>
     private final Condition notEmpty = lock.newCondition();
     private final int capacity;
     private final Queue<Notification> queue;
-    private long smallest;
+    private long first;
 
     public NotificationQueue(int capacity)
     {
+        assert capacity > 0;
+
         this.capacity = capacity;
         this.queue = new LinkedList<Notification>();
     }
 
-    public long getSmallest()
+    public long getFirst()
     {
-        lock.lock();
+        lock.lock(); // for visibility
         try
         {
-            return smallest;
+            return first;
         }
         finally
         {
@@ -76,14 +79,14 @@ public class NotificationQueue implements Queue<Notification>
             if (queue.size() == capacity)
             {
                 LOG.trace("Queue at capacity");
-                smallest++;
+                first++;
                 queue.remove();
             }
             return queue.add(notification);
         }
         finally
         {
-            notEmpty.signal();
+            notEmpty.signalAll();
             lock.unlock();
         }
     }
@@ -100,7 +103,7 @@ public class NotificationQueue implements Queue<Notification>
         lock.lock();
         try
         {
-            if (!queue.isEmpty()) smallest++;
+            if (!queue.isEmpty()) first++;
             return queue.remove();
         }
         finally
@@ -115,7 +118,7 @@ public class NotificationQueue implements Queue<Notification>
         lock.lock();
         try
         {
-            smallest++;
+            first++;
             return queue.poll();
         }
         finally
@@ -208,36 +211,58 @@ public class NotificationQueue implements Queue<Notification>
         }
     }
 
-    public Notifications fetch(long start, int max, long timeout, TimeUnit unit) throws InterruptedException
+    public Notifications fetch(long start, int max, Set<ObjectName> names, long timeout, TimeUnit unit) throws InterruptedException
     {
         long nanos = unit.toNanos(timeout);
 
         lock.lockInterruptibly();
         try
         {
-            while (smallest + queue.size() <= start)
+            /**
+             * index "moves" along the queue as elements are checked against the names.
+             * This allows the structure to wait if no elements match the set of names.
+             */
+            long index = start;
+            int next = 0;
+            long smallest = -1;
+
+            List<Notification> list = new LinkedList<Notification>();
+            while (list.isEmpty())
             {
-                if (nanos <= 0)
+                while (first + queue.size() <= index)
                 {
-                    LOG.trace("Timeout");
-                    return new Notifications(start, 0);
+                    if (nanos <= 0)
+                    {
+                        LOG.trace("Timeout");
+                        return new Notifications(index, 0);
+                    }
+                    LOG.trace("Waiting {}ns", nanos);
+                    nanos = notEmpty.awaitNanos(nanos);
                 }
-                LOG.trace("Waiting {}ns", nanos);
-                nanos = notEmpty.awaitNanos(nanos);
+
+                LOG.trace("No longer waiting");
+
+                int begin = (int)(Math.max(start, first) - first);
+                next = (int)first + begin;
+                Iterator<Notification> iterator = queue.iterator();
+
+                for (int i = 0; i < begin; i++) iterator.next();
+
+                while (iterator.hasNext())
+                {
+                    index++;
+                    next++;
+                    Notification notification = iterator.next();
+                    if (names.contains(notification.getSource()))
+                    {
+                        if (smallest < 0) smallest = next - 1;
+                        list.add(notification);
+                        if (list.size() == max) break;
+                    }
+                }
             }
 
-            LOG.trace("No longer waiting");
-
-            int begin = (int)(Math.max(start, smallest) - smallest);
-            int end = Math.min(queue.size(), begin + Math.min(queue.size(), max));
-
-            List<Notification> list = new ArrayList<Notification>(end - begin);
-            Iterator<Notification> iterator = queue.iterator();
-
-            for (int i = 0; i < begin; i++) iterator.next();
-            for (int i = begin; i < end; i++) list.add(iterator.next());
-
-            return new Notifications(list, smallest + end, smallest + begin);
+            return new Notifications(list, next, smallest);
         }
         finally
         {
@@ -301,7 +326,7 @@ public class NotificationQueue implements Queue<Notification>
         try
         {
             for (Notification notification : c) add(notification);
-            return c.size() > 0;
+            return !c.isEmpty();
         }
         finally
         {
@@ -327,7 +352,7 @@ public class NotificationQueue implements Queue<Notification>
         lock.lock();
         try
         {
-            smallest += queue.size();
+            first += queue.size();
             queue.clear();
         }
         finally

@@ -37,47 +37,49 @@ import org.testng.annotations.Test;
  */
 public class NotificationQueueTest
 {
-    ObjectName objectName;
+    ObjectName objectName_1;
+    ObjectName objectName_2;
 
     @Test
     public void testAddFull()
     {
         NotificationQueue queue = new NotificationQueue(2);
 
-        assertEquals(queue.getSmallest(), 0);
+        assertEquals(queue.getFirst(), 0);
         assertEquals(queue.getCapacity(), 2);
 
-        queue.add(new Notification("important", 0, System.currentTimeMillis(), null, "Very important!", objectName));
-        assertEquals(queue.getSmallest(), 0);
-        queue.add(new Notification("important", 1, System.currentTimeMillis(), null, "Very important!", objectName));
-        assertEquals(queue.getSmallest(), 0);
-        queue.add(new Notification("important", 2, System.currentTimeMillis(), null, "Very important!", objectName));
-        assertEquals(queue.getSmallest(), 1);
-        queue.add(new Notification("important", 3, System.currentTimeMillis(), null, "Very important!", objectName));
-        assertEquals(queue.getSmallest(), 2);
+        queue.add(new Notification("important", 0, System.currentTimeMillis(), null, "Very important!", objectName_1));
+        assertEquals(queue.getFirst(), 0);
+        queue.add(new Notification("important", 1, System.currentTimeMillis(), null, "Very important!", objectName_1));
+        assertEquals(queue.getFirst(), 0);
+        queue.add(new Notification("important", 2, System.currentTimeMillis(), null, "Very important!", objectName_1));
+        assertEquals(queue.getFirst(), 1);
+        queue.add(new Notification("important", 3, System.currentTimeMillis(), null, "Very important!", objectName_1));
+        assertEquals(queue.getFirst(), 2);
 
         queue.clear();
 
-        queue.offer(new Notification("important", 4, System.currentTimeMillis(), null, "Very important!", objectName));
-        assertEquals(queue.getSmallest(), 4);
-        queue.offer(new Notification("important", 5, System.currentTimeMillis(), null, "Very important!", objectName));
-        assertEquals(queue.getSmallest(), 4);
-        queue.offer(new Notification("important", 6, System.currentTimeMillis(), null, "Very important!", objectName));
-        assertEquals(queue.getSmallest(), 5);
-        queue.offer(new Notification("important", 7, System.currentTimeMillis(), null, "Very important!", objectName));
-        assertEquals(queue.getSmallest(), 6);
+        queue.offer(new Notification("important", 4, System.currentTimeMillis(), null, "Very important!", objectName_1));
+        assertEquals(queue.getFirst(), 4);
+        queue.offer(new Notification("important", 5, System.currentTimeMillis(), null, "Very important!", objectName_1));
+        assertEquals(queue.getFirst(), 4);
+        queue.offer(new Notification("important", 6, System.currentTimeMillis(), null, "Very important!", objectName_1));
+        assertEquals(queue.getFirst(), 5);
+        queue.offer(new Notification("important", 7, System.currentTimeMillis(), null, "Very important!", objectName_1));
+        assertEquals(queue.getFirst(), 6);
     }
 
     @Test
-    public void testFetch() throws InterruptedException
+    public void testSimpleFetch() throws InterruptedException
     {
-        final NotificationQueue queue = new NotificationQueue(3);
+        NotificationQueue queue = new NotificationQueue(3);
 
-        queue.add(new Notification("important", 0, System.currentTimeMillis(), null, "Very important!", objectName));
-        queue.add(new Notification("important", 1, System.currentTimeMillis(), null, "Very important!", objectName));
-        queue.add(new Notification("important", 2, System.currentTimeMillis(), null, "Very important!", objectName));
+        // fill queue
+        queue.add(new Notification("important", 0, System.currentTimeMillis(), null, "Very important!", objectName_1));
+        queue.add(new Notification("important", 1, System.currentTimeMillis(), null, "Very important!", objectName_1));
+        queue.add(new Notification("important", 2, System.currentTimeMillis(), null, "Very important!", objectName_1));
 
-        Notifications result = queue.fetch(0, 2, 1, TimeUnit.SECONDS);
+        Notifications result = queue.fetch(0, 2, Collections.singleton(objectName_1), 1, TimeUnit.SECONDS);
         assertNotNull(result);
         assertEquals(result.getSmallest(), 0);
         assertEquals(result.getNext(), 2);
@@ -85,15 +87,29 @@ public class NotificationQueueTest
         assertEquals(result.getNotifications().get(0).getSequenceNumber(), 0);
         assertEquals(result.getNotifications().get(1).getSequenceNumber(), 1);
 
+        // first member should be knocked out
+        queue.add(new Notification("important", 3, System.currentTimeMillis(), null, "Very important!", objectName_1));
 
-        queue.add(new Notification("important", 3, System.currentTimeMillis(), null, "Very important!", objectName));
+        result = queue.fetch(0, 2, Collections.singleton(objectName_1), 1, TimeUnit.SECONDS);
+        assertNotNull(result);
+        assertEquals(result.getSmallest(), 1);
+        assertEquals(result.getNext(), 3);
+        assertEquals(result.getNotifications().size(), 2);
+        assertEquals(result.getNotifications().get(0).getSequenceNumber(), 1);
+        assertEquals(result.getNotifications().get(1).getSequenceNumber(), 2);
 
-        result = queue.fetch(3, Integer.MAX_VALUE, 1, TimeUnit.SECONDS);
+        result = queue.fetch(3, Integer.MAX_VALUE, Collections.singleton(objectName_1), 1, TimeUnit.SECONDS);
         assertNotNull(result);
         assertEquals(result.getSmallest(), 3);
         assertEquals(result.getNext(), 4);
         assertEquals(result.getNotifications().size(), 1);
         assertEquals(result.getNotifications().get(0).getSequenceNumber(), 3);
+    }
+
+    @Test
+    public void testFetchBlockedSimple() throws InterruptedException
+    {
+        final NotificationQueue queue = new NotificationQueue(3);
 
         final AtomicReference<Notifications> atomicReference = new AtomicReference<Notifications>();
         final CountDownLatch start = new CountDownLatch(1);
@@ -105,7 +121,7 @@ public class NotificationQueueTest
                 try
                 {
                     start.countDown();
-                    atomicReference.set(queue.fetch(4, Integer.MAX_VALUE, 1, TimeUnit.DAYS));
+                    atomicReference.set(queue.fetch(0, Integer.MAX_VALUE, Collections.singleton(objectName_1), 1, TimeUnit.DAYS));
                 }
                 catch (InterruptedException ignored)
                 {
@@ -118,45 +134,101 @@ public class NotificationQueueTest
 
         assertNull(atomicReference.get());
 
-        queue.add(new Notification("important", 4, System.currentTimeMillis(), null, "Very important!", objectName));
+        queue.add(new Notification("important", 4, System.currentTimeMillis(), null, "Very important!", objectName_1));
 
         thread.join();
 
-        result = atomicReference.get();
+        Notifications result = atomicReference.get();
         assertNotNull(result);
-        assertEquals(result.getSmallest(), 4);
-        assertEquals(result.getNext(), 5);
+        assertEquals(result.getSmallest(), 0);
+        assertEquals(result.getNext(), 1);
         assertEquals(result.getNotifications().size(), 1);
         assertEquals(result.getNotifications().get(0).getSequenceNumber(), 4);
+        assertEquals(result.getNotifications().get(0).getSource(), objectName_1);
+    }
 
-        queue.addAll(Collections.singleton(new Notification("important", 5, System.currentTimeMillis(), null, "Very important!", objectName)));
+    @Test
+    public void testFetchBlockedFilter() throws InterruptedException
+    {
+        final NotificationQueue queue = new NotificationQueue(3);
 
-        result = queue.fetch(5, Integer.MAX_VALUE, 1, TimeUnit.SECONDS);
-        assertNotNull(result);
-        assertEquals(result.getSmallest(), 5);
-        assertEquals(result.getNext(), 6);
-        assertEquals(result.getNotifications().size(), 1);
-        assertEquals(result.getNotifications().get(0).getSequenceNumber(), 5);
+        queue.add(new Notification("important", 0, System.currentTimeMillis(), null, "Very important!", objectName_1));
+        queue.add(new Notification("important", 1, System.currentTimeMillis(), null, "Very important!", objectName_1));
+        queue.add(new Notification("important", 2, System.currentTimeMillis(), null, "Very important!", objectName_1));
 
-        result = queue.fetch(0, 2, 1, TimeUnit.SECONDS);
+        final AtomicReference<Notifications> atomicReference = new AtomicReference<Notifications>();
+        final CountDownLatch start = new CountDownLatch(1);
+        Thread thread = new Thread(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                try
+                {
+                    start.countDown();
+                    atomicReference.set(queue.fetch(0, Integer.MAX_VALUE, Collections.singleton(objectName_2), 1, TimeUnit.DAYS));
+                }
+                catch (InterruptedException ignored)
+                {
+                }
+            }
+        });
+
+        thread.start();
+        start.await();
+
+        assertNull(atomicReference.get());
+
+        queue.add(new Notification("important", 1, System.currentTimeMillis(), null, "Very important!", objectName_2));
+
+        thread.join();
+
+        Notifications result = atomicReference.get();
         assertNotNull(result);
         assertEquals(result.getSmallest(), 3);
-        assertEquals(result.getNext(), 5);
+        assertEquals(result.getNext(), 4);
+        assertEquals(result.getNotifications().size(), 1);
+        assertEquals(result.getNotifications().get(0).getSequenceNumber(), 1);
+        assertEquals(result.getNotifications().get(0).getSource(), objectName_2);
+    }
+
+    @Test
+    public void testAddAll() throws InterruptedException
+    {
+        NotificationQueue queue = new NotificationQueue(3);
+
+        queue.add(new Notification("important", 0, System.currentTimeMillis(), null, "Very important!", objectName_1));
+
+        queue.addAll(Collections.singleton(new Notification("important", 1, System.currentTimeMillis(), null, "Very important!", objectName_1)));
+
+        Notifications result = queue.fetch(0, Integer.MAX_VALUE, Collections.singleton(objectName_1), 1, TimeUnit.SECONDS);
+        assertNotNull(result);
+        assertEquals(result.getSmallest(), 0);
+        assertEquals(result.getNext(), 2);
         assertEquals(result.getNotifications().size(), 2);
-        assertEquals(result.getNotifications().get(0).getSequenceNumber(), 3);
-        assertEquals(result.getNotifications().get(1).getSequenceNumber(), 4);
-        assertEquals(queue.size(), 3);
+        assertEquals(result.getNotifications().get(0).getSequenceNumber(), 0);
+        assertEquals(result.getNotifications().get(1).getSequenceNumber(), 1);
+    }
+
+    @Test
+    public void testRemovePeekPoll() throws InterruptedException
+    {
+        NotificationQueue queue = new NotificationQueue(3);
+
+        queue.add(new Notification("important", 0, System.currentTimeMillis(), null, "Very important!", objectName_1));
+        queue.add(new Notification("important", 0, System.currentTimeMillis(), null, "Very important!", objectName_1));
+        queue.add(new Notification("important", 0, System.currentTimeMillis(), null, "Very important!", objectName_1));
 
         queue.remove();
-        assertEquals(queue.getSmallest(), 4);
+        assertEquals(queue.getFirst(), 1);
         assertEquals(queue.size(), 2);
 
         queue.peek();
-        assertEquals(queue.getSmallest(), 4);
+        assertEquals(queue.getFirst(), 1);
         assertEquals(queue.size(), 2);
 
         queue.poll();
-        assertEquals(queue.getSmallest(), 5);
+        assertEquals(queue.getFirst(), 2);
         assertEquals(queue.size(), 1);
     }
 
@@ -197,6 +269,7 @@ public class NotificationQueueTest
     @BeforeClass
     public void beforeClass() throws MalformedObjectNameException
     {
-        objectName = ObjectName.getInstance("com.acme:name=Hello");
+        objectName_1 = ObjectName.getInstance("com.acme:name=One");
+        objectName_2 = ObjectName.getInstance("com.acme:name=Two");
     }
 }
