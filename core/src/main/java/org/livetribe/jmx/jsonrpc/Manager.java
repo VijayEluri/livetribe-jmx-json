@@ -59,7 +59,6 @@ public class Manager implements NotificationListener
     private int nextSessionId = 0;
     private final NotificationQueue notificationQueue;
     private final Map<ObjectName, Integer> listeners = new HashMap<ObjectName, Integer>();
-    private final Map<Integer, Map<ObjectName, Integer>> sessionListeners = new HashMap<Integer, Map<ObjectName, Integer>>();
 
     public Manager(MBeanServer mBeanServer, ScheduledExecutorService executorService, int capacity)
     {
@@ -90,28 +89,25 @@ public class Manager implements NotificationListener
         synchronized (sessions)
         {
             Session session = sessions.remove(sessionId);
-            if (session != null) session.getFuture().cancel(false);
+            if (session == null) return;
 
-            Map<ObjectName, Integer> count = sessionListeners.get(sessionId);
-            if (count != null)
+            session.getFuture().cancel(false);
+
+            while (!session.getListeners().isEmpty())
             {
-                for (ObjectName name : count.keySet())
+                for (ObjectName name : session.getListeners())
                 {
-                    int c = count.get(name);
-                    for (int i = 0; i < c; i++)
+                    try
                     {
-                        try
-                        {
-                            removeNotificationListener(sessionId, name);
-                        }
-                        catch (InstanceNotFoundException e)
-                        {
-                            LOGGER.warn("Instance {} not found during session removal", name);
-                        }
-                        catch (ListenerNotFoundException e)
-                        {
-                            LOGGER.warn("Listener not found for {} during session removal", name);
-                        }
+                        removeNotificationListener(sessionId, name);
+                    }
+                    catch (InstanceNotFoundException e)
+                    {
+                        LOGGER.warn("Instance {} not found during session removal", name);
+                    }
+                    catch (ListenerNotFoundException e)
+                    {
+                        LOGGER.warn("Listener not found for {} during session removal", name);
                     }
                 }
             }
@@ -144,7 +140,6 @@ public class Manager implements NotificationListener
                 }
             }
             listeners.clear();
-            sessionListeners.clear();
 
             notificationQueue.clear();
         }
@@ -227,12 +222,11 @@ public class Manager implements NotificationListener
             refresh(session);
         }
 
-        Map<ObjectName, Integer> objects = sessionListeners.get(sessionId);
-        if (session != null && objects != null)
+        if (session != null && !session.getListeners().isEmpty())
         {
             try
             {
-                return notificationQueue.fetch(start, session.getMaxNotifications(), objects.keySet(), session.getPollingTimeout(), TimeUnit.MILLISECONDS);
+                return notificationQueue.fetch(start, session.getMaxNotifications(), session.getListeners(), session.getPollingTimeout(), TimeUnit.MILLISECONDS);
             }
             catch (InterruptedException e)
             {
@@ -347,7 +341,8 @@ public class Manager implements NotificationListener
     {
         synchronized (sessions)
         {
-            if (!sessions.containsKey(sessionId)) return;
+            Session session = sessions.get(sessionId);
+            if (session == null) return;
 
             if (!listeners.containsKey(name))
             {
@@ -361,16 +356,7 @@ public class Manager implements NotificationListener
                 listeners.put(name, listeners.get(name) + 1);
             }
 
-            Map<ObjectName, Integer> count = sessionListeners.get(sessionId);
-            if (count == null)
-            {
-                sessionListeners.put(sessionId, count = new HashMap<ObjectName, Integer>());
-                count.put(name, 1);
-            }
-            else
-            {
-                count.put(name, count.get(name) + 1);
-            }
+            session.increment(name);
         }
     }
 
@@ -383,19 +369,12 @@ public class Manager implements NotificationListener
     {
         synchronized (sessions)
         {
+            Session session = sessions.get(sessionId);
             if (!sessions.containsKey(sessionId)) return;
 
             if (listeners.containsKey(name))
             {
-                Map<ObjectName, Integer> count = sessionListeners.get(sessionId);
-                if (count != null)
-                {
-                    int previous = count.put(name, count.get(name) - 1);
-                    if (previous == 1)
-                    {
-                        sessionListeners.remove(sessionId);
-                    }
-                }
+                session.decrement(name);
 
                 int previous = listeners.put(name, listeners.get(name) - 1);
                 if (previous == 1)

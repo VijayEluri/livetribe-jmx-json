@@ -115,8 +115,8 @@ public class ManagerTest
 
         try
         {
-            assertEquals(manager.createMBean("com.acme.Hello", HELLO_OBJECT_NAME),
-                         new ObjectInstance(HELLO_OBJECT_NAME, "com.acme.Hello"));
+            assertEquals(manager.createMBean("Hello", HELLO_OBJECT_NAME),
+                         new ObjectInstance(HELLO_OBJECT_NAME, "Hello"));
 
             assertEquals(mBeanServer.getAttribute(HELLO_OBJECT_NAME, "Name"),
                          "default");
@@ -137,10 +137,10 @@ public class ManagerTest
 
             Manager manager = new Manager(mBeanServer, executorService, 5);
 
-            assertEquals(manager.createMBean("com.acme.Hello",
+            assertEquals(manager.createMBean("Hello",
                                              HELLO_OBJECT_NAME,
                                              PARENT_OBJECT_NAME),
-                         new ObjectInstance(HELLO_OBJECT_NAME, "com.acme.Hello"));
+                         new ObjectInstance(HELLO_OBJECT_NAME, "Hello"));
 
             assertEquals(mBeanServer.getAttribute(HELLO_OBJECT_NAME, "Name"),
                          "default");
@@ -161,11 +161,11 @@ public class ManagerTest
 
         try
         {
-            assertEquals(manager.createMBean("com.acme.Hello",
+            assertEquals(manager.createMBean("Hello",
                                              HELLO_OBJECT_NAME,
                                              new Object[]{"FOO"},
                                              new String[]{String.class.getName()}),
-                         new ObjectInstance(HELLO_OBJECT_NAME, "com.acme.Hello"));
+                         new ObjectInstance(HELLO_OBJECT_NAME, "Hello"));
 
             assertEquals(mBeanServer.getAttribute(HELLO_OBJECT_NAME, "Name"),
                          "FOO");
@@ -187,12 +187,12 @@ public class ManagerTest
         {
             mBeanServer.registerMBean(new AcmeClassLoader(Hello.class.getClassLoader()), PARENT_OBJECT_NAME);
 
-            assertEquals(manager.createMBean("com.acme.Hello",
+            assertEquals(manager.createMBean("Hello",
                                              HELLO_OBJECT_NAME,
                                              PARENT_OBJECT_NAME,
                                              new Object[]{"FOO"},
                                              new String[]{String.class.getName()}),
-                         new ObjectInstance(HELLO_OBJECT_NAME, "com.acme.Hello"));
+                         new ObjectInstance(HELLO_OBJECT_NAME, "Hello"));
 
             assertEquals(mBeanServer.getAttribute(HELLO_OBJECT_NAME, "Name"),
                          "FOO");
@@ -211,8 +211,8 @@ public class ManagerTest
 
         Manager manager = new Manager(mBeanServer, executorService, 5);
 
-        assertEquals(manager.createMBean("com.acme.Hello", HELLO_OBJECT_NAME),
-                     new ObjectInstance(HELLO_OBJECT_NAME, "com.acme.Hello"));
+        assertEquals(manager.createMBean("Hello", HELLO_OBJECT_NAME),
+                     new ObjectInstance(HELLO_OBJECT_NAME, "Hello"));
 
         assertTrue(mBeanServer.isRegistered(HELLO_OBJECT_NAME));
         manager.unregisterMBean(HELLO_OBJECT_NAME);
@@ -227,10 +227,10 @@ public class ManagerTest
 
         try
         {
-            mBeanServer.createMBean("com.acme.Hello", HELLO_OBJECT_NAME);
+            mBeanServer.createMBean("Hello", HELLO_OBJECT_NAME);
 
             assertEquals(manager.getObjectInstance(HELLO_OBJECT_NAME),
-                         new ObjectInstance(HELLO_OBJECT_NAME, "com.acme.Hello"));
+                         new ObjectInstance(HELLO_OBJECT_NAME, "Hello"));
         }
         finally
         {
@@ -383,10 +383,10 @@ public class ManagerTest
     public void beforeClass() throws Exception
     {
         executorService = new ScheduledThreadPoolExecutor(10);
-        HELLO_OBJECT_NAME = ObjectName.getInstance("com.acme.Hello:name=Kitty");
-        PARENT_OBJECT_NAME = ObjectName.getInstance("com.acme.Hello:type=Parent");
-        BROTHER_OBJECT_NAME = ObjectName.getInstance("com.acme.Hello:type=Brother");
-        SISTER_OBJECT_NAME = ObjectName.getInstance("com.acme.Hello:type=Sister");
+        HELLO_OBJECT_NAME = ObjectName.getInstance("Hello:name=Kitty");
+        PARENT_OBJECT_NAME = ObjectName.getInstance("Hello:type=Parent");
+        BROTHER_OBJECT_NAME = ObjectName.getInstance("Hello:type=Brother");
+        SISTER_OBJECT_NAME = ObjectName.getInstance("Hello:type=Sister");
     }
 
     @AfterClass

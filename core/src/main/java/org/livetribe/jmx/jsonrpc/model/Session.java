@@ -15,7 +15,10 @@
  */
 package org.livetribe.jmx.jsonrpc.model;
 
+import javax.management.ObjectName;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Future;
 
@@ -32,7 +35,8 @@ public class Session
     private int pollingTimeout;
     private int maxNotifications;
     private int calls;
-    private Set<Listener> listeners = new HashSet<Listener>();
+    private Set<ObjectName> listeners = new HashSet<ObjectName>();
+    @JsonIgnore Map<ObjectName, Integer> count = new HashMap<ObjectName, Integer>();
     @JsonIgnore private Future future;
 
     public Session()
@@ -100,14 +104,42 @@ public class Session
         this.calls = calls;
     }
 
-    public Set<Listener> getListeners()
+    public Set<ObjectName> getListeners()
     {
         return listeners;
     }
 
-    public void setListeners(Set<Listener> listeners)
+    public void setListeners(Set<ObjectName> listeners)
     {
         this.listeners = listeners;
+
+        for (ObjectName name : listeners) increment(name);
+    }
+
+    public void increment(ObjectName name)
+    {
+        if (count.containsKey(name))
+        {
+            count.put(name, count.get(name) + 1);
+        }
+        else
+        {
+            count.put(name, 1);
+            listeners.add(name);
+        }
+    }
+
+    public void decrement(ObjectName name)
+    {
+        if (count.containsKey(name))
+        {
+            int previous = count.put(name, count.get(name) - 1);
+            if (previous == 1)
+            {
+                count.remove(name);
+                listeners.remove(name);
+            }
+        }
     }
 
     public Future getFuture()
