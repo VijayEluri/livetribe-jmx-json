@@ -40,6 +40,7 @@ import org.livetribe.jmx.jsonrpc.codecs.ObjectInstanceDeserializer;
 import org.livetribe.jmx.jsonrpc.codecs.ObjectInstanceSerializer;
 import org.livetribe.jmx.jsonrpc.codecs.ObjectNameDeserializer;
 import org.livetribe.jmx.jsonrpc.codecs.ObjectNameSerializer;
+import org.livetribe.jmx.jsonrpc.model.Notifications;
 import org.livetribe.jmx.jsonrpc.model.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -254,6 +255,13 @@ public class Rpc
                                                       @Param(name = "handback") String handback) throws InstanceNotFoundException, ListenerNotFoundException
     {
         ManagerFilter.getManager().removeNotificationListener(name, listener, handback);
+    }
+
+    @Method
+    public Notifications fetchNotifications(@Param(name = "sessionId") int sessionId,
+                                            @Param(name = "start") long start)
+    {
+        return ManagerFilter.getManager().fetchNotifications(sessionId, start);
     }
 
     @Method
