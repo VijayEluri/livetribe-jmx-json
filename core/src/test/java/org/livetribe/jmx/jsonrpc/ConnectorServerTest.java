@@ -47,7 +47,7 @@ public class ConnectorServerTest
 
         mBeanServer.createMBean(Hello.class.getName(), ObjectName.getInstance("com.acme:name=Hello"));
 
-        JMXServiceURL url = new JMXServiceURL("service:jmx:jsonrpc://localhost:8080/ws/");
+        JMXServiceURL url = new JMXServiceURL("service:jmx:jsonrpc://localhost:9080/ws/");
         Map<String, Object> environment = new HashMap<String, Object>();
         environment.put(JMXConnectorServerFactory.PROTOCOL_PROVIDER_PACKAGES, "org.livetribe.jmx");
         environment.put(ConnectorServer.SCHEDULED_EXECUTOR, new ScheduledThreadPoolExecutor(10));
