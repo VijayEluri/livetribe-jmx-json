@@ -40,5 +40,18 @@
         <url>https://github.com/livetribe/livetribe-jmx-json</url>
     </scm>
 
+    <profiles>
+        <profile>
+            <id>toolazydogs-snapshots</id>
+            <repositories>
+                <repository>
+                    <id>toolazydogs-dist-m2-snapshots</id>
+                    <name>Too Lazy Dogs Development Repository</name>
+                    <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+                </repository>
+            </repositories>
+        </profile>
+    </profiles>
+
 </project>
 
