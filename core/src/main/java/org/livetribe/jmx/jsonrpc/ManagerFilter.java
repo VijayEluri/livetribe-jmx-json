@@ -55,6 +55,8 @@ public class ManagerFilter implements Filter
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException
     {
+        LOG.trace("Setting thread local with {}", manager);
+
         MANAGERS.set(manager);
         try
         {
@@ -62,6 +64,7 @@ public class ManagerFilter implements Filter
         }
         finally
         {
+            LOG.trace("Thread local cleared");
             MANAGERS.set(null);
         }
     }
